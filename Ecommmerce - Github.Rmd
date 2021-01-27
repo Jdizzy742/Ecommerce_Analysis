@@ -1,0 +1,131 @@
+---
+title: "Ecommerce - Github"
+author: "Jordan Vance"
+date: "1/27/2021"
+output:
+  word_document: default
+  html_document: default
+---
+# This work was adapted from: Chapman C. and McDonnell Feit E., (2019). R for Marketing Research and Analytics. (2nd ed.). Cham, Switzerland: Springer.
+
+# Load libraries
+```{r}
+library(tidyverse)
+library(lattice)
+library(corrplot)
+library(gplots)
+library(janitor)
+library(psych)
+```
+
+# Load data
+```{r}
+ecomm.df <- read.csv("C:/Wake Forest/BAN7060/Week 2/ecommerce.csv") %>%
+  clean_names()
+head(ecomm.df)  
+
+# we will look back at "intent_was_planning_to_buy" and there are a lot of blanks.  Fill in blanks with "No Response"
+ecomm.df$intent_was_planning_to_buy <- replace(ecomm.df$intent_was_planning_to_buy, ecomm.df$intent_was_planning_to_buy == "", "No Response")
+  
+
+# check the details
+head(ecomm.df)
+str(ecomm.df)
+describe(ecomm.df)
+```
+
+# Create frequency table for country.
+```{r}
+with(ecomm.df, table(country))
+
+# Check the frequency with a barchart for visual
+barchart(with(ecomm.df, table(country))) # click "show in window" for clearer country labels
+
+# narrow barchart to top 5 countries and plot for comparison
+sort <- ecomm.df %>%
+  group_by(country) %>%
+  filter(n() >= 10)
+
+par(mfrow = c(1,1), mar = c(7,4,4,2) +.1)
+barplot(with(sort, table(country)), col = "light blue",
+        ylab = "frequency", xlab = "Country", las = 2)
+# After the US, which country had the most visitors?
+# Canada with 62
+```
+
+
+# Create a two-way frequency table for intent_was_planning_to_buy and a subsequent barchart
+```{r}
+profile.table <- as.data.frame(table(ecomm.df$intent_was_planning_to_buy, ecomm.df$profile))
+profile.table
+
+profile.agg <- aggregate(Freq ~ Var2 + Var1,
+                         data = profile.table, mean)
+
+par(mfrow=c(1,1))
+barchart(Freq ~ Var2, data = profile.agg,
+         groups = Var1,
+         scales = list(x = list(rot = 45)),
+         auto.key = T, par.settings = simpleTheme)
+
+# cumulative barchart for a different interpretation
+with(ecomm.df, table(intent_was_planning_to_buy, profile))
+barchart(table(ecomm.df$profile, ecomm.df$intent_was_planning_to_buy), auto.key = T)
+
+# What was the most frequent level of intent to purchase?
+# Parents with 96 "Yes" compared to 490 total visits
+```
+
+# Create a barchart of the total behav_num_visits from each state in the US.  Which state has the highest total number of visits?
+```{r}
+filter.country <- ecomm.df %>%
+  filter(country == "United States") 
+
+barchart(prop.table(table(filter.country$behav_num_visits, filter.country$region), margin = 2) [2, ],
+         xlab = "Number of Visits by State")
+# not a very useful graphic.  Difficult to create space between teh variables.
+
+# I decided to filter and rearrange to create a more interpretable graphic of the top 5 performers for clearer interpretation
+
+sort.state <- aggregate(filter.country$behav_num_visits, by = list(Category = filter.country$region), FUN = sum) %>%
+  arrange(desc(x))
+sort.state
+
+sort.state %>%
+  filter(x >= 100) %>%
+ggplot(aes(x = Category, y = x)) +
+  geom_bar(stat = "identity")
+
+# Which state had the highest total number of visits?
+# Texas with 200
+```
+
+
+
+
+# Generate a histogram of behav_num_visits on intent_was_planning_to_buy.  Is there any visible dependence on the number of visits an individual makes and their intention to purchase?
+```{r}
+
+with(ecomm.df, table(behav_num_visits, intent_was_planning_to_buy))
+
+histogram(~ behav_num_visits | intent_was_planning_to_buy, data = ecomm.df,
+          breaks = 100, xlim = c(0,10))
+# Is there any visible dependence on teh number of visits an individual makes and their intention?
+# There does appear to be a small dependence on the number of visits an individual makes and their intention to purchase, as we can see that there are almost 0 percent of site visits that were No's with an intent was planning to buy, and we can see that 1 or 2% of site visits were Yes with intent to buy
+```
+
+
+# Add gender as a second conditional variable to the previous histograms
+```{r}
+with(ecomm.df, table(behav_num_visits, intent_was_planning_to_buy, gender))
+
+histogram(~ behav_num_visits | intent_was_planning_to_buy + gender, data = ecomm.df,
+          breaks = 100, xlim = c(0,10))
+# 6 - Is there any dependence on teh number of visits an individual makes and and the combination of their gender and intention to purchase?
+
+# alternate phrasings that say the same thing----------
+# Phrasing 1 - although the plot shows that a higher percentage of men who visit the site make a purchase, the table shows that there are many more women who visit the site and purchase, in general, when compared to men. 
+
+# Phrasing 2 - We see that the distributions of number of site visits for femal evisitors are similarr for all levels of intention to buy, but for males, on average the number of visits per customer increases with the intention to buy.
+```
+
